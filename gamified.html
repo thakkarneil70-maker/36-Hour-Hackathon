@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SYNTHO — Chemistry Synthesis Puzzle</title>
+  <meta name="description" content="Master organic chemistry synthesis through interactive puzzle gameplay. Build reaction pathways, earn achievements, and compete on the leaderboard.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="gamified.css">
+</head>
+<body>
+
+  <!-- ═══════ MENU SCREEN ═══════ -->
+  <div id="menuScreen" class="screen active">
+    <div class="menu-bg-grid"></div>
+    <div class="menu-content">
+      <div class="logo-section">
+        <div class="logo-glow"></div>
+        <h1 class="game-logo">SYNTHO<span>QUEST</span></h1>
+        <p class="tagline">Master Chemistry Through Strategy</p>
+      </div>
+
+      <div class="menu-stats-bar">
+        <div class="menu-stat">
+          <span class="stat-icon">⚗️</span>
+          <span class="stat-val" id="menuLevel">Novice</span>
+          <span class="stat-label">Rank</span>
+        </div>
+        <div class="menu-stat">
+          <span class="stat-icon">⭐</span>
+          <span class="stat-val" id="menuXP">0</span>
+          <span class="stat-label">XP</span>
+        </div>
+        <div class="menu-stat">
+          <span class="stat-icon">🔥</span>
+          <span class="stat-val" id="menuStreak">0</span>
+          <span class="stat-label">Streak</span>
+        </div>
+        <div class="menu-stat">
+          <span class="stat-icon">🏆</span>
+          <span class="stat-val" id="menuBadges">0</span>
+          <span class="stat-label">Badges</span>
+        </div>
+      </div>
+
+      <!-- Daily Challenge Banner -->
+      <div class="daily-banner" id="dailyBanner">
+        <div class="daily-shimmer"></div>
+        <span class="daily-icon">🌟</span>
+        <div class="daily-info">
+          <strong>Daily Challenge</strong>
+          <span id="dailyDesc">Loading...</span>
+        </div>
+        <button id="dailyBtn" class="daily-play-btn">PLAY</button>
+      </div>
+
+      <!-- Level Grid -->
+      <div class="level-grid" id="levelGrid">
+        <!-- Populated by JS -->
+      </div>
+
+      <div class="menu-actions">
+        <button id="leaderboardBtn" class="neon-btn secondary">🏆 Leaderboard</button>
+        <button id="resetProgressBtn" class="neon-btn danger-outline">↻ Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ GAME SCREEN ═══════ -->
+  <div id="gameScreen" class="screen">
+    <!-- Top Bar -->
+    <div class="top-bar">
+      <div class="top-left">
+        <button id="backBtn" class="icon-btn" title="Back to Menu">
+          <span>←</span>
+        </button>
+        <div class="level-badge-group">
+          <span class="level-badge">LVL <span id="levelNum">1</span></span>
+          <span class="diff-badge" id="diffBadge">BEGINNER</span>
+        </div>
+        <span class="level-name" id="levelName">First Reaction</span>
+      </div>
+
+      <div class="problem-panel">
+        <div class="mol-card start-mol">
+          <span class="mol-label">START</span>
+          <div class="mol-hex-vis" id="startMolHex">⬡</div>
+          <span class="mol-name" id="startMolName">Benzene</span>
+        </div>
+        <div class="pathway-arrow-container">
+          <div class="pathway-arrow">
+            <svg width="60" height="24" viewBox="0 0 60 24"><path d="M0 12 H50 M42 4 L54 12 L42 20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <span class="step-counter"><span id="stepCount">0</span> steps</span>
+        </div>
+        <div class="mol-card target-mol">
+          <span class="mol-label">TARGET</span>
+          <div class="mol-hex-vis target" id="targetMolHex">⬡</div>
+          <span class="mol-name" id="targetMolName">Nitrobenzene</span>
+        </div>
+      </div>
+
+      <div class="top-right">
+        <div class="timer-display" id="timerBox">
+          <span class="timer-icon">⏱</span>
+          <span id="timerDisplay">2:00</span>
+        </div>
+        <div class="score-display">
+          <span id="scoreDisplay">0</span>
+          <span class="score-suffix">pts</span>
+        </div>
+        <div class="streak-display" id="streakBox" style="display:none">
+          <span>🔥</span>
+          <span id="streakDisplay">0</span>
+        </div>
+        <div class="attempts-display" id="attemptsBox">
+          <span class="attempts-icon">💣</span>
+          <span id="attemptsDisplay">2</span>
+          <span class="attempts-label">left</span>
+        </div>
+        <div class="stars-display" id="starsDisplay">
+          <span class="star">☆</span><span class="star">☆</span><span class="star">☆</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Game Area (3 columns) -->
+    <div class="game-area">
+      <!-- LEFT: Reaction Toolbar -->
+      <aside class="reaction-toolbar" id="reactionToolbar">
+        <h3 class="toolbar-title">
+          <span class="toolbar-icon">⚗️</span> REACTIONS
+        </h3>
+        <div class="reaction-list" id="reactionList">
+          <!-- Populated by JS -->
+        </div>
+        <div class="current-mol-info" id="currentMolInfo">
+          <span class="info-label">Current Molecule</span>
+          <span class="info-value" id="currentMolDisplay">Benzene</span>
+        </div>
+      </aside>
+
+      <!-- CENTER: Workspace -->
+      <main class="workspace" id="workspace">
+        <div class="workspace-toolbar">
+          <span class="workspace-title">SYNTHESIS PATHWAY</span>
+          <div class="workspace-actions">
+            <button id="undoBtn" class="tool-btn" title="Undo last step">↩ Undo</button>
+            <button id="clearBtn" class="tool-btn" title="Clear pathway">✕ Clear</button>
+          </div>
+        </div>
+        <div class="pathway-viewport" id="pathwayViewport">
+          <div class="pathway-track" id="pathwayTrack">
+            <!-- Nodes rendered by JS -->
+          </div>
+        </div>
+        <div class="workspace-hint" id="workspaceHint">
+          Click a reaction from the toolbar to begin your synthesis pathway
+        </div>
+      </main>
+
+      <!-- RIGHT: AI Tutor -->
+      <aside class="tutor-panel" id="tutorPanel">
+        <div class="tutor-header">
+          <div class="tutor-avatar-ring">
+            <span class="tutor-avatar">🧬</span>
+          </div>
+          <div class="tutor-identity">
+            <span class="tutor-name">Dr. Synth</span>
+            <span class="tutor-status"><span class="status-dot"></span> Online</span>
+          </div>
+        </div>
+        <div class="tutor-messages" id="tutorMessages">
+          <!-- Chat messages rendered by JS -->
+        </div>
+        <div class="tutor-actions">
+          <button class="tutor-btn hint-btn" id="hintBtn">💡 Hint</button>
+          <button class="tutor-btn explain-btn" id="explainBtn">📖 Explain</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ═══════ COMPLETION MODAL ═══════ -->
+  <div id="completionModal" class="modal-overlay">
+    <div class="modal-card completion-card">
+      <div class="completion-header" id="completionHeader">
+        <div class="completion-stars" id="completionStars"></div>
+        <h2 id="completionTitle">Level Complete!</h2>
+        <p id="completionSubtitle">Great work, chemist!</p>
+      </div>
+      <div class="completion-stats" id="completionStats">
+        <!-- Stats rendered by JS -->
+      </div>
+      <div class="optimal-path-section" id="optimalSection" style="display:none">
+        <h4>✨ Optimal Path</h4>
+        <div class="optimal-path" id="optimalPath"></div>
+      </div>
+      <div class="completion-actions">
+        <button id="retryBtn" class="neon-btn secondary">↻ Retry</button>
+        <button id="nextLevelBtn" class="neon-btn primary">Next Level →</button>
+        <button id="menuBtn" class="neon-btn outline">Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ LEADERBOARD MODAL ═══════ -->
+  <div id="leaderboardModal" class="modal-overlay">
+    <div class="modal-card leaderboard-card">
+      <div class="leaderboard-header">
+        <h2>🏆 Leaderboard</h2>
+        <button class="modal-close" id="closeLeaderboard">✕</button>
+      </div>
+      <div class="leaderboard-list" id="leaderboardList">
+        <!-- Rendered by JS -->
+      </div>
+      <button class="neon-btn outline" id="closeLeaderboardBtn">Close</button>
+    </div>
+  </div>
+
+  <!-- ═══════ TIME UP MODAL ═══════ -->
+  <div id="timeUpModal" class="modal-overlay">
+    <div class="modal-card time-up-card">
+      <div class="time-up-header">
+        <div class="time-up-icon">⏰</div>
+        <h2>Time’s Up!</h2>
+        <p>You ran out of time. Don’t give up — try again!</p>
+      </div>
+      <div class="completion-stats">
+        <div class="comp-stat">
+          <span class="comp-stat-val" id="timeUpScore">0</span>
+          <span class="comp-stat-label">Score</span>
+        </div>
+        <div class="comp-stat">
+          <span class="comp-stat-val" id="timeUpSteps">0</span>
+          <span class="comp-stat-label">Steps Taken</span>
+        </div>
+        <div class="comp-stat" style="grid-column:span 2">
+          <span class="comp-stat-val" id="timeUpTime">0s</span>
+          <span class="comp-stat-label">Time Elapsed</span>
+        </div>
+      </div>
+      <div class="optimal-path-section">
+        <h4>✨ Correct Pathway</h4>
+        <div class="optimal-path" id="timeUpOptimalPath"></div>
+      </div>
+      <div class="completion-actions">
+        <button id="timeUpRetryBtn" class="neon-btn primary">↻ Retry Level</button>
+        <button id="timeUpMenuBtn" class="neon-btn outline">Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ LEVEL FAILED MODAL ═══════ -->
+  <div id="failedModal" class="modal-overlay">
+    <div class="modal-card failed-card">
+      <div class="failed-header">
+        <div class="failed-icon">💀</div>
+        <h2>Level Failed</h2>
+        <p>You’ve used all your attempts. Study the correct path below.</p>
+      </div>
+      <div class="completion-stats">
+        <div class="comp-stat">
+          <span class="comp-stat-val" id="failedScore">0</span>
+          <span class="comp-stat-label">Final Score</span>
+        </div>
+        <div class="comp-stat">
+          <span class="comp-stat-val" id="failedAttempts">0</span>
+          <span class="comp-stat-label">Wrong Attempts</span>
+        </div>
+        <div class="comp-stat" style="grid-column:span 2">
+          <span class="comp-stat-val" id="failedTime">0s</span>
+          <span class="comp-stat-label">Time Elapsed</span>
+        </div>
+      </div>
+      <div class="optimal-path-section" style="display:block">
+        <h4>✨ Correct Solution</h4>
+        <div class="optimal-path" id="failedOptimalPath"></div>
+      </div>
+      <div class="completion-actions">
+        <button id="failedRetryBtn" class="neon-btn primary">↻ Try Again</button>
+        <button id="failedMenuBtn" class="neon-btn outline">Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ OVERLAYS ═══════ -->
+  <div id="achievementContainer" class="achievement-container"></div>
+  <div id="particleContainer" class="particle-container"></div>
+  <div id="scorePopupContainer" class="score-popup-container"></div>
+  <div id="screenFlash" class="screen-flash"></div>
+
+  <script src="gamified.js"></script>
+</body>
+</html>
