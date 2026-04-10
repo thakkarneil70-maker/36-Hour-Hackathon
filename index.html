@@ -399,75 +399,96 @@
 
         <!-- Cone Slice Panel -->
         <div id="coneSlicePanel" class="conics-subpanel active">
-          <div class="slice-container">
-            <div class="slice-controls">
+          <div class="slice-container-v2">
+            <!-- Left: Controls -->
+            <div class="slice-controls-v2">
               <h3>🔵 Conic Sections Lab</h3>
               <p class="conics-desc">Slice a cone with a plane to discover circles, ellipses, parabolas, and hyperbolas.</p>
 
-              <div class="curve-label" id="curveLabel">You created: <span>Circle</span></div>
+              <div class="curve-label-v2" id="curveLabel">
+                <div class="curve-label-tag">You created</div>
+                <div class="curve-label-name"><span>Circle</span></div>
+              </div>
 
-              <div class="control-group">
+              <div class="control-group-v2">
                 <label>📐 Plane Angle</label>
-                <input type="range" id="planeAngle" min="-60" max="60" value="0" step="1">
-                <span id="angleVal">0°</span>
+                <div class="slider-row">
+                  <input type="range" id="planeAngle" min="-60" max="60" value="0" step="1">
+                  <span id="angleVal" class="slider-value">0°</span>
+                </div>
               </div>
 
-              <div class="control-group">
+              <div class="control-group-v2">
                 <label>↕️ Plane Height</label>
-                <input type="range" id="planeHeight" min="-80" max="80" value="0" step="1">
-                <span id="heightVal">0</span>
-              </div>
-
-              <div class="conics-info" id="conicsInfo">
-                <strong>💡 How it works:</strong><br>
-                • <b>Circle:</b> Plane parallel to cone base<br>
-                • <b>Ellipse:</b> Plane angled less than cone slope<br>
-                • <b>Parabola:</b> Plane angled equal to cone slope<br>
-                • <b>Hyperbola:</b> Plane angled more than cone slope
-              </div>
-            </div>
-
-            <div class="slice-visualization">
-              <div class="cone-view">
-                <canvas id="conicsCanvas" width="400" height="400"></canvas>
-                <div class="cone-legend">
-                  <span class="legend-item"><span class="cone-line"></span> Cone</span>
-                  <span class="legend-item"><span class="plane-line"></span> Plane</span>
-                  <span class="legend-item"><span class="curve-line"></span> Section</span>
+                <div class="slider-row">
+                  <input type="range" id="planeHeight" min="-80" max="80" value="0" step="1">
+                  <span id="heightVal" class="slider-value">0</span>
                 </div>
               </div>
 
-              <div class="curve-result">
-                <h4>📊 Resulting Curve</h4>
-                <canvas id="curveResultCanvas" width="280" height="280"></canvas>
-                <div class="curve-types">
-                  <div class="curve-type-item" data-type="Circle">
-                    <div class="type-icon circle-icon"></div>
-                    <span>Circle</span>
-                  </div>
-                  <div class="curve-type-item" data-type="Ellipse">
-                    <div class="type-icon ellipse-icon"></div>
-                    <span>Ellipse</span>
-                  </div>
-                  <div class="curve-type-item" data-type="Parabola">
-                    <div class="type-icon parabola-icon"></div>
-                    <span>Parabola</span>
-                  </div>
-                  <div class="curve-type-item" data-type="Hyperbola">
-                    <div class="type-icon hyperbola-icon"></div>
-                    <span>Hyperbola</span>
-                  </div>
+              <div class="conics-info-v2" id="conicsInfo">
+                <div class="conics-info-title">💡 How it works</div>
+                <div class="conics-info-item">
+                  <span class="cinfo-dot" style="background:#10b981"></span>
+                  <span><b>Circle:</b> Plane parallel to base</span>
+                </div>
+                <div class="conics-info-item">
+                  <span class="cinfo-dot" style="background:#3b82f6"></span>
+                  <span><b>Ellipse:</b> Angle &lt; cone slope</span>
+                </div>
+                <div class="conics-info-item">
+                  <span class="cinfo-dot" style="background:#f59e0b"></span>
+                  <span><b>Parabola:</b> Angle = cone slope</span>
+                </div>
+                <div class="conics-info-item">
+                  <span class="cinfo-dot" style="background:#ef4444"></span>
+                  <span><b>Hyperbola:</b> Angle &gt; cone slope</span>
                 </div>
               </div>
 
+              <div class="cone-legend-v2">
+                <span class="legend-item"><span class="cone-line"></span> Cone</span>
+                <span class="legend-item"><span class="plane-line"></span> Plane</span>
+                <span class="legend-item"><span class="curve-line"></span> Section</span>
+              </div>
             </div>
 
-            <div class="ai-tutor-panel ai-tutor-below">
-              <h4>🤖 AI Tutor</h4>
-              <div class="ai-response" id="aiResponse">Click "Explain This" to learn about the current curve!</div>
-              <input type="text" id="aiQuestion" placeholder="Ask a question (optional)..." class="ai-input">
-              <button id="explainBtn" class="ai-btn">💡 Explain This</button>
+            <!-- Center: Cone Canvas -->
+            <div class="cone-view-v2">
+              <canvas id="conicsCanvas" width="480" height="480"></canvas>
             </div>
+
+            <!-- Right: Resulting Curve -->
+            <div class="curve-result-v2">
+              <h4>📊 Resulting Curve</h4>
+              <canvas id="curveResultCanvas" width="260" height="260"></canvas>
+              <div class="curve-types-v2">
+                <div class="curve-type-item" data-type="Circle">
+                  <div class="type-icon circle-icon"></div>
+                  <span>Circle</span>
+                </div>
+                <div class="curve-type-item" data-type="Ellipse">
+                  <div class="type-icon ellipse-icon"></div>
+                  <span>Ellipse</span>
+                </div>
+                <div class="curve-type-item" data-type="Parabola">
+                  <div class="type-icon parabola-icon"></div>
+                  <span>Parabola</span>
+                </div>
+                <div class="curve-type-item" data-type="Hyperbola">
+                  <div class="type-icon hyperbola-icon"></div>
+                  <span>Hyperbola</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Tutor Below -->
+          <div class="ai-tutor-panel ai-tutor-below-v2">
+            <h4>🤖 AI Tutor</h4>
+            <div class="ai-response" id="aiResponse">Click "Explain This" to learn about the current curve!</div>
+            <input type="text" id="aiQuestion" placeholder="Ask a question (optional)..." class="ai-input">
+            <button id="explainBtn" class="ai-btn">💡 Explain This</button>
           </div>
         </div>
 
@@ -503,9 +524,38 @@
                 • The <span style="color:#f59e0b">tracing point</span> shows equal distances
               </div>
               
-              <button class="fd-toggle-btn" id="toggleAnimation">
-                ⏸ Pause Tracing
-              </button>
+              <div class="fd-action-buttons">
+                <button class="fd-toggle-btn" id="toggleAnimation">
+                  <span class="fd-btn-icon">⏸</span> Pause & Verify PF = PD
+                </button>
+                <button class="fd-derivation-btn" id="derivationBtn">
+                  <span class="fd-btn-icon">📐</span> Derivation
+                </button>
+              </div>
+
+              <!-- PF = PD Proof Display (shown when paused) -->
+              <div class="fd-proof-display" id="fdProofDisplay">
+                <div class="fd-proof-header">
+                  <span class="fd-proof-badge">✓ VERIFIED</span>
+                  <span class="fd-proof-title">Focus-Directrix Property</span>
+                </div>
+                <div class="fd-proof-values">
+                  <div class="fd-proof-value pf-value">
+                    <span class="fd-proof-label">PF</span>
+                    <span class="fd-proof-number" id="proofPF">—</span>
+                  </div>
+                  <div class="fd-proof-equals">
+                    <span class="fd-equals-sign">=</span>
+                  </div>
+                  <div class="fd-proof-value pd-value">
+                    <span class="fd-proof-label">PD</span>
+                    <span class="fd-proof-number" id="proofPD">—</span>
+                  </div>
+                </div>
+                <div class="fd-proof-conclusion" id="proofConclusion">
+                  For every point P on the parabola, PF = PD always holds true!
+                </div>
+              </div>
             </div>
             
             <div class="fd-canvas-wrapper">
@@ -526,6 +576,84 @@
             </div>
           </div>
         </div>
+
+        <!-- Derivation Modal -->
+        <div class="fd-derivation-overlay" id="derivationOverlay">
+          <div class="fd-derivation-modal" id="derivationModal">
+            <button class="fd-modal-close" id="closeDerivation">✕</button>
+            <div class="fd-modal-header">
+              <div class="fd-modal-icon">📐</div>
+              <h3>Derivation: PF = PD</h3>
+              <p class="fd-modal-subtitle">Why every point on a parabola is equidistant from the focus and directrix</p>
+            </div>
+            <div class="fd-modal-body">
+              <div class="fd-deriv-step">
+                <div class="fd-step-number">1</div>
+                <div class="fd-step-content">
+                  <h4>Definition of a Parabola</h4>
+                  <p>A parabola is defined as the <strong>locus of all points</strong> that are equidistant from a fixed point (the <span class="fd-highlight-focus">Focus F</span>) and a fixed line (the <span class="fd-highlight-directrix">Directrix</span>).</p>
+                </div>
+              </div>
+              <div class="fd-deriv-step">
+                <div class="fd-step-number">2</div>
+                <div class="fd-step-content">
+                  <h4>Setting Up Coordinates</h4>
+                  <p>Place the vertex at the origin. Let the focus be at <strong class="fd-math">F(0, a)</strong> and the directrix be the line <strong class="fd-math">y = −a</strong>, where <em>a</em> is the focal length.</p>
+                  <div class="fd-math-block">Focus: F(0, a) &nbsp;|&nbsp; Directrix: y = −a</div>
+                </div>
+              </div>
+              <div class="fd-deriv-step">
+                <div class="fd-step-number">3</div>
+                <div class="fd-step-content">
+                  <h4>Distance from P(x, y) to Focus</h4>
+                  <p>Using the distance formula:</p>
+                  <div class="fd-math-block">PF = √(x² + (y − a)²)</div>
+                </div>
+              </div>
+              <div class="fd-deriv-step">
+                <div class="fd-step-number">4</div>
+                <div class="fd-step-content">
+                  <h4>Distance from P(x, y) to Directrix</h4>
+                  <p>The perpendicular distance from point P to the line y = −a is:</p>
+                  <div class="fd-math-block">PD = |y − (−a)| = |y + a|</div>
+                </div>
+              </div>
+              <div class="fd-deriv-step">
+                <div class="fd-step-number">5</div>
+                <div class="fd-step-content">
+                  <h4>Setting PF = PD</h4>
+                  <p>By the definition of a parabola:</p>
+                  <div class="fd-math-block">√(x² + (y − a)²) = |y + a|</div>
+                  <p>Squaring both sides:</p>
+                  <div class="fd-math-block">x² + (y − a)² = (y + a)²</div>
+                </div>
+              </div>
+              <div class="fd-deriv-step">
+                <div class="fd-step-number">6</div>
+                <div class="fd-step-content">
+                  <h4>Expanding & Simplifying</h4>
+                  <div class="fd-math-block">x² + y² − 2ay + a² = y² + 2ay + a²</div>
+                  <p>Cancel y² and a² from both sides:</p>
+                  <div class="fd-math-block">x² − 2ay = 2ay</div>
+                  <div class="fd-math-block">x² = 4ay</div>
+                </div>
+              </div>
+              <div class="fd-deriv-step fd-final-step">
+                <div class="fd-step-number">✓</div>
+                <div class="fd-step-content">
+                  <h4>Conclusion</h4>
+                  <p>The equation <strong class="fd-math">x² = 4ay</strong> is the standard equation of a parabola.</p>
+                  <div class="fd-conclusion-box">
+                    <div class="fd-conclusion-icon">🎯</div>
+                    <p>Since we <em>derived</em> this equation by setting <strong>PF = PD</strong>, this proves that for <strong>every single point</strong> on the parabola, the distance to the focus equals the distance to the directrix.</p>
+                    <div class="fd-math-block fd-final-eq">PF = PD &nbsp; ∀ P ∈ Parabola</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div><!-- /mathConics -->
     </section>
 

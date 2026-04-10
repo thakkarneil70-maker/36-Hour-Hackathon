@@ -871,34 +871,32 @@ function initConicsLab() {
   const heightVal = document.getElementById('heightVal');
   const curveLabel = document.getElementById('curveLabel');
 
-  // Cone parameters
+  // Cone parameters (larger for 480x480 canvas)
   const coneHeight = 180;
-  const coneBaseRadius = 120;
+  const coneBaseRadius = 130;
   const coneSlope = coneBaseRadius / coneHeight;
 
-  // Animation state (smooth interpolated values)
+  // Animation state
   let currentAngle = 0;
   let currentHeight = 0;
   let targetAngle = 0;
   let targetHeight = 0;
   let lastCurveName = '';
   let curveStabilityCounter = 0;
+  let animTime = 0;
 
   function toRad(deg) { return deg * Math.PI / 180; }
 
-  // Get curve type with hysteresis for stability
   function getCurveType(angleDeg, prevType) {
     const absAngle = Math.abs(angleDeg);
     const planeSlope = Math.tan(toRad(absAngle));
     const thresholdLow = coneSlope * 0.85;
     const thresholdHigh = coneSlope * 1.15;
 
-    // Special case: circle (horizontal plane with small tolerance)
     if (absAngle < 5) {
       return { name: 'Circle', color: '#10b981', desc: 'Plane parallel to base' };
     }
 
-    // With hysteresis - prefer keeping current type near boundaries
     if (prevType === 'Parabola') {
       if (planeSlope < thresholdLow * 0.9) return { name: 'Ellipse', color: '#3b82f6', desc: 'Plane angle < cone slope' };
       if (planeSlope > thresholdHigh * 1.1) return { name: 'Hyperbola', color: '#ef4444', desc: 'Plane angle > cone slope' };
@@ -911,7 +909,6 @@ function initConicsLab() {
       if (planeSlope > thresholdHigh) return { name: 'Hyperbola', color: '#ef4444', desc: 'Plane angle > cone slope' };
     }
 
-    // Standard classification
     if (planeSlope < thresholdLow) {
       return { name: 'Ellipse', color: '#3b82f6', desc: 'Plane angle < cone slope' };
     } else if (planeSlope < thresholdHigh) {
@@ -921,7 +918,6 @@ function initConicsLab() {
     }
   }
 
-  // Smooth interpolation
   function lerp(start, end, t) {
     return start + (end - start) * t;
   }
@@ -931,208 +927,297 @@ function initConicsLab() {
     targetHeight = parseFloat(heightSlider?.value || 0);
   }
 
-  function drawCone(cx, cy, pulse = 0) {
-    const apexY = cy - coneHeight;
+  // ===== ENHANCED CONE DRAWING (inspired by reference image) =====
 
-    // Draw filled cone body with gradient
-    const gradient = ctx.createLinearGradient(cx - coneBaseRadius, cy, cx + coneBaseRadius, cy);
-    gradient.addColorStop(0, 'rgba(139, 92, 246, 0.1)');
-    gradient.addColorStop(0.5, 'rgba(139, 92, 246, 0.25)');
-    gradient.addColorStop(1, 'rgba(139, 92, 246, 0.1)');
+  function drawDoubleCone(cx, cy, pulse) {
+    const apexY = cy;
+    const topConeBaseY = cy - coneHeight;
+    const bottomConeBaseY = cy + coneHeight;
+    const ellipseRy = coneBaseRadius * 0.22;
 
-    ctx.fillStyle = gradient;
+    // --- BOTTOM CONE (main) ---
+    // Gradient fill (teal/green like reference)
+    const botGrad = ctx.createLinearGradient(cx - coneBaseRadius, apexY, cx + coneBaseRadius, bottomConeBaseY);
+    botGrad.addColorStop(0, 'rgba(16, 185, 129, 0.06)');
+    botGrad.addColorStop(0.4, 'rgba(6, 182, 212, 0.15)');
+    botGrad.addColorStop(1, 'rgba(16, 185, 129, 0.08)');
+
+    ctx.save();
+    ctx.fillStyle = botGrad;
     ctx.beginPath();
     ctx.moveTo(cx, apexY);
-    ctx.lineTo(cx + coneBaseRadius, cy);
-    ctx.ellipse(cx, cy, coneBaseRadius, coneBaseRadius * 0.25, 0, 0, Math.PI);
-    ctx.lineTo(cx - coneBaseRadius, cy);
+    ctx.lineTo(cx + coneBaseRadius, bottomConeBaseY);
+    ctx.ellipse(cx, bottomConeBaseY, coneBaseRadius, ellipseRy, 0, 0, Math.PI);
+    ctx.lineTo(cx - coneBaseRadius, bottomConeBaseY);
     ctx.closePath();
     ctx.fill();
 
-    // Draw cone outline with glow
-    ctx.save();
-    ctx.strokeStyle = 'rgba(167, 139, 250, 0.9)';
-    ctx.lineWidth = 2.5;
-    ctx.shadowColor = 'rgba(139, 92, 246, 0.6)';
-    ctx.shadowBlur = 8 + pulse * 4;
-
-    // Right side (visible)
+    // Bottom cone outline - right side
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.7)';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(16, 185, 129, 0.4)';
+    ctx.shadowBlur = 6;
     ctx.beginPath();
     ctx.moveTo(cx, apexY);
-    ctx.lineTo(cx + coneBaseRadius, cy);
+    ctx.lineTo(cx + coneBaseRadius, bottomConeBaseY);
     ctx.stroke();
 
-    // Base ellipse front
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, coneBaseRadius, coneBaseRadius * 0.25, 0, 0, Math.PI);
-    ctx.stroke();
-    ctx.restore();
-
-    // Left side (hidden/dashed)
-    ctx.save();
+    // Bottom cone outline - left side (dashed)
     ctx.setLineDash([6, 4]);
-    ctx.strokeStyle = 'rgba(139, 92, 246, 0.35)';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.35)';
     ctx.shadowBlur = 0;
     ctx.beginPath();
     ctx.moveTo(cx, apexY);
-    ctx.lineTo(cx - coneBaseRadius, cy);
+    ctx.lineTo(cx - coneBaseRadius, bottomConeBaseY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Bottom base ellipse front
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(cx, bottomConeBaseY, coneBaseRadius, ellipseRy, 0, 0, Math.PI);
     ctx.stroke();
 
-    // Base ellipse back
+    // Bottom base ellipse back (dashed)
+    ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.2)';
     ctx.beginPath();
-    ctx.ellipse(cx, cy, coneBaseRadius, coneBaseRadius * 0.25, 0, Math.PI, Math.PI * 2);
+    ctx.ellipse(cx, bottomConeBaseY, coneBaseRadius, ellipseRy, 0, Math.PI, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.restore();
 
-    // Apex marker with pulse
+    // --- TOP CONE (inverted, like reference image) ---
+    const topGrad = ctx.createLinearGradient(cx - coneBaseRadius, topConeBaseY, cx + coneBaseRadius, apexY);
+    topGrad.addColorStop(0, 'rgba(16, 185, 129, 0.06)');
+    topGrad.addColorStop(0.6, 'rgba(6, 182, 212, 0.12)');
+    topGrad.addColorStop(1, 'rgba(16, 185, 129, 0.06)');
+
     ctx.save();
-    ctx.fillStyle = '#c4b5fd';
-    ctx.shadowColor = 'rgba(196, 181, 253, 0.8)';
+    ctx.fillStyle = topGrad;
+    ctx.beginPath();
+    ctx.moveTo(cx, apexY);
+    ctx.lineTo(cx + coneBaseRadius, topConeBaseY);
+    ctx.ellipse(cx, topConeBaseY, coneBaseRadius, ellipseRy, 0, 0, -Math.PI, true);
+    ctx.lineTo(cx - coneBaseRadius, topConeBaseY);
+    ctx.closePath();
+    ctx.fill();
+
+    // Top cone outline - right side
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, apexY);
+    ctx.lineTo(cx + coneBaseRadius, topConeBaseY);
+    ctx.stroke();
+
+    // Top cone outline - left side (dashed)
+    ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.25)';
+    ctx.beginPath();
+    ctx.moveTo(cx, apexY);
+    ctx.lineTo(cx - coneBaseRadius, topConeBaseY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Top base ellipse
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(cx, topConeBaseY, coneBaseRadius, ellipseRy, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // --- CENTRAL AXIS (dashed red line with arrows, like reference) ---
+    ctx.save();
+    ctx.setLineDash([4, 6]);
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx, topConeBaseY - 30);
+    ctx.lineTo(cx, bottomConeBaseY + 30);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Arrow top
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.7)';
+    ctx.beginPath();
+    ctx.moveTo(cx, topConeBaseY - 34);
+    ctx.lineTo(cx - 5, topConeBaseY - 24);
+    ctx.lineTo(cx + 5, topConeBaseY - 24);
+    ctx.closePath();
+    ctx.fill();
+
+    // Arrow bottom
+    ctx.beginPath();
+    ctx.moveTo(cx, bottomConeBaseY + 34);
+    ctx.lineTo(cx - 5, bottomConeBaseY + 24);
+    ctx.lineTo(cx + 5, bottomConeBaseY + 24);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // Apex glow
+    ctx.save();
+    ctx.fillStyle = '#10b981';
+    ctx.shadowColor = 'rgba(16, 185, 129, 0.8)';
     ctx.shadowBlur = 12 + pulse * 6;
     ctx.beginPath();
-    ctx.arc(cx, apexY, 5, 0, Math.PI * 2);
+    ctx.arc(cx, apexY, 4, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
 
-  function drawPlane(cx, cy, angleDeg, height, curveType, pulse = 0) {
+  function drawPlane(cx, cy, angleDeg, height, curveType, pulse) {
     const angleRad = toRad(angleDeg);
-    const planeLength = 220;
+    const planeWidth = 280;
+    const planeThickness = 50;
     const heightOffset = height * 1.2;
     const planeY = cy - heightOffset;
 
-    // Calculate plane endpoints
-    const dx = planeLength * Math.cos(angleRad) / 2;
-    const dy = planeLength * Math.sin(angleRad) / 2;
+    const dx = planeWidth * Math.cos(angleRad) / 2;
+    const dy = planeWidth * Math.sin(angleRad) / 2;
 
-    // Draw plane with enhanced glow
+    // Semi-transparent plane rectangle (peach/orange like reference)
     ctx.save();
-    ctx.strokeStyle = '#22d3ee';
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-    ctx.shadowColor = 'rgba(34, 211, 238, 0.8)';
-    ctx.shadowBlur = 15 + pulse * 8;
+    const planeGrad = ctx.createLinearGradient(cx - dx, planeY - dy, cx + dx, planeY + dy);
+    planeGrad.addColorStop(0, 'rgba(251, 191, 36, 0.08)');
+    planeGrad.addColorStop(0.3, 'rgba(249, 115, 22, 0.18)');
+    planeGrad.addColorStop(0.7, 'rgba(249, 115, 22, 0.18)');
+    planeGrad.addColorStop(1, 'rgba(251, 191, 36, 0.08)');
 
-    // Main plane line
+    // Draw plane as a parallelogram for 3D depth
+    const depthY = planeThickness * 0.15;
+    ctx.fillStyle = planeGrad;
+    ctx.beginPath();
+    ctx.moveTo(cx - dx, planeY - dy - depthY);
+    ctx.lineTo(cx + dx, planeY + dy - depthY);
+    ctx.lineTo(cx + dx, planeY + dy + depthY);
+    ctx.lineTo(cx - dx, planeY - dy + depthY);
+    ctx.closePath();
+    ctx.fill();
+
+    // Plane edge highlight
+    ctx.strokeStyle = 'rgba(249, 115, 22, 0.6)';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(249, 115, 22, 0.4)';
+    ctx.shadowBlur = 8;
     ctx.beginPath();
     ctx.moveTo(cx - dx, planeY - dy);
     ctx.lineTo(cx + dx, planeY + dy);
     ctx.stroke();
-
-    // Plane endpoints (small circles)
-    ctx.fillStyle = '#22d3ee';
-    ctx.beginPath();
-    ctx.arc(cx - dx, planeY - dy, 4, 0, Math.PI * 2);
-    ctx.arc(cx + dx, planeY + dy, 4, 0, Math.PI * 2);
-    ctx.fill();
     ctx.restore();
 
-    // Draw intersection curve
-    drawIntersectionCurve(cx, cy, planeY, angleRad, curveType, pulse);
-
-    return curveType;
+    // Draw the intersection as a filled blue region
+    drawIntersectionFilled(cx, cy, planeY, angleRad, curveType, pulse);
   }
 
-  function drawIntersectionCurve(cx, cy, planeY, angleRad, curve, pulse) {
-    const curveOpacity = 0.9 + pulse * 0.1;
+  function drawIntersectionFilled(cx, cy, planeY, angleRad, curve, pulse) {
+    const animPulse = Math.sin(animTime * 2) * 0.15 + 0.85;
 
     ctx.save();
-    ctx.strokeStyle = curve.color;
-    ctx.lineWidth = 3.5;
-    ctx.lineCap = 'round';
-    ctx.shadowColor = curve.color;
-    ctx.shadowBlur = 12 + pulse * 6;
-    ctx.globalAlpha = curveOpacity;
+
+    // Create a filled blue cross-section shape (like reference image)
+    const fillColor = curve.color;
+    ctx.fillStyle = fillColor + '55';
+    ctx.strokeStyle = fillColor;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = fillColor;
+    ctx.shadowBlur = 15;
+    ctx.globalAlpha = animPulse;
 
     ctx.beginPath();
 
     if (curve.name === 'Circle') {
-      // Circle: proper intersection calculation
-      const distFromApex = (cy - coneHeight) - planeY;
+      const distFromApex = cy - planeY;
       const normalizedDist = Math.max(0, Math.min(1, distFromApex / coneHeight));
-      const radius = coneBaseRadius * (1 - normalizedDist);
-      const ry = radius * 0.3; // perspective flattening
-
+      const radius = coneBaseRadius * normalizedDist;
+      const ry = radius * 0.3;
       if (radius > 3) {
         ctx.ellipse(cx, planeY, radius, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.stroke();
       }
 
     } else if (curve.name === 'Ellipse') {
-      // Ellipse: offset and rotated based on plane angle
-      const distFromApex = (cy - coneHeight) - planeY;
+      const distFromApex = cy - planeY;
       const normalizedDist = Math.max(0.1, Math.min(1, distFromApex / coneHeight));
-      const rx = coneBaseRadius * (1 - normalizedDist) * 1.1;
-      const ry = rx * 0.35;
+      const rx = coneBaseRadius * normalizedDist * 1.1;
+      const ry = rx * 0.3;
       const rotation = angleRad * 0.3;
-
       ctx.ellipse(cx, planeY, rx, ry, rotation, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.stroke();
 
     } else if (curve.name === 'Parabola') {
-      // Parabola: U-shaped curve
       const openDir = angleRad > 0 ? 1 : -1;
-      const focalLength = 25;
+      const focalLength = 28;
       const vertexY = planeY + openDir * 20;
-
-      for (let t = -60; t <= 60; t += 1.5) {
-        const x = cx + t;
-        const y = vertexY + openDir * (t * t) / (4 * focalLength);
-        if (t === -60) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+      const pts = [];
+      for (let t = -65; t <= 65; t += 1.5) {
+        pts.push({ x: cx + t, y: vertexY + openDir * (t * t) / (4 * focalLength) });
       }
+      // Fill path
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (const p of pts) ctx.lineTo(p.x, p.y);
+      ctx.fill();
+      // Stroke outline
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (const p of pts) ctx.lineTo(p.x, p.y);
+      ctx.stroke();
 
     } else if (curve.name === 'Hyperbola') {
-      // Hyperbola: two branches opening up/down
       const openDir = angleRad > 0 ? 1 : -1;
-      const a = 30; // semi-major axis
-      const b = 25; // semi-minor axis
-      const centerY = planeY;
-
-      // Draw two branches
+      const a = 30, b = 25;
       for (let branch = -1; branch <= 1; branch += 2) {
-        let first = true;
+        const pts = [];
         for (let t = 1.2; t <= 4; t += 0.08) {
-          const xOffset = branch * a * Math.cosh(t);
-          const yOffset = openDir * b * Math.sinh(t) * 0.5;
-
-          // Only draw if within reasonable bounds
-          if (Math.abs(xOffset) < 150) {
-            const x = cx + xOffset;
-            const y = centerY + yOffset;
-            if (first) { ctx.moveTo(x, y); first = false; }
-            else ctx.lineTo(x, y);
+          const xOff = branch * a * Math.cosh(t);
+          const yOff = openDir * b * Math.sinh(t) * 0.5;
+          if (Math.abs(xOff) < 160) {
+            pts.push({ x: cx + xOff, y: planeY + yOff });
           }
+        }
+        if (pts.length > 2) {
+          ctx.beginPath();
+          ctx.moveTo(pts[0].x, pts[0].y);
+          for (const p of pts) ctx.lineTo(p.x, p.y);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          ctx.beginPath();
+          ctx.moveTo(pts[0].x, pts[0].y);
+          for (const p of pts) ctx.lineTo(p.x, p.y);
+          ctx.stroke();
         }
       }
     }
 
-    ctx.stroke();
     ctx.restore();
   }
 
+  // ===== ANIMATION LOOP =====
+
   function animate() {
-    // Smooth interpolation towards targets
-    const lerpFactor = 0.12; // Lower = smoother but slower
+    const lerpFactor = 0.12;
     currentAngle = lerp(currentAngle, targetAngle, lerpFactor);
     currentHeight = lerp(currentHeight, targetHeight, lerpFactor);
 
-    // Check if we're close enough to stop animation
     const angleDiff = Math.abs(currentAngle - targetAngle);
     const heightDiff = Math.abs(currentHeight - targetHeight);
 
-    // Update slider display values during animation
     if (angleVal) angleVal.textContent = Math.round(currentAngle) + '°';
     if (heightVal) heightVal.textContent = Math.round(currentHeight);
 
-    // Draw frame
     draw();
 
-    // Continue animation if still moving
     if (angleDiff > 0.1 || heightDiff > 0.1) {
       conicsAnimationId = requestAnimationFrame(animate);
     } else {
-      // Snap to final values
       currentAngle = targetAngle;
       currentHeight = targetHeight;
       draw();
@@ -1147,7 +1232,7 @@ function initConicsLab() {
     }
   }
 
-  // Curve result canvas functions
+  // Curve result canvas
   const resultCanvas = document.getElementById('curveResultCanvas');
   const resultCtx = resultCanvas?.getContext('2d');
 
@@ -1158,11 +1243,10 @@ function initConicsLab() {
     const cx = w / 2, cy = h / 2;
     const scale = Math.min(w, h) * 0.35 * progress;
 
-    // Clear with subtle grid
     resultCtx.fillStyle = 'rgba(10, 14, 26, 1)';
     resultCtx.fillRect(0, 0, w, h);
 
-    // Draw subtle grid
+    // Subtle grid
     resultCtx.strokeStyle = 'rgba(100, 100, 100, 0.08)';
     resultCtx.lineWidth = 1;
     for (let x = 0; x < w; x += 20) {
@@ -1176,7 +1260,6 @@ function initConicsLab() {
       resultCtx.stroke();
     }
 
-    // Create gradient based on curve color
     function createGradient(color, x, y, r) {
       const g = resultCtx.createRadialGradient(x - r*0.3, y - r*0.3, 0, x, y, r);
       g.addColorStop(0, color + 'cc');
@@ -1185,7 +1268,6 @@ function initConicsLab() {
       return g;
     }
 
-    // Color mapping
     const colorMap = {
       'Circle': '#10b981',
       'Ellipse': '#3b82f6',
@@ -1194,29 +1276,21 @@ function initConicsLab() {
     };
     const baseColor = colorMap[curveType.name] || curveType.color;
 
-    // Glow effect setup
     resultCtx.save();
     resultCtx.shadowColor = baseColor;
     resultCtx.shadowBlur = 25;
-    resultCtx.shadowOffsetX = 0;
-    resultCtx.shadowOffsetY = 0;
 
     switch (curveType.name) {
       case 'Circle':
-        // Filled circle with gradient depth
         const circleGrad = createGradient(baseColor, cx, cy, scale);
         resultCtx.fillStyle = circleGrad;
         resultCtx.beginPath();
         resultCtx.arc(cx, cy, scale, 0, Math.PI * 2);
         resultCtx.fill();
-
-        // Inner highlight for 3D effect
         resultCtx.fillStyle = baseColor + '44';
         resultCtx.beginPath();
         resultCtx.arc(cx - scale*0.25, cy - scale*0.25, scale * 0.4, 0, Math.PI * 2);
         resultCtx.fill();
-
-        // Rim glow
         resultCtx.strokeStyle = baseColor;
         resultCtx.lineWidth = 3;
         resultCtx.beginPath();
@@ -1225,17 +1299,13 @@ function initConicsLab() {
         break;
 
       case 'Ellipse':
-        // Filled ellipse
         resultCtx.translate(cx, cy);
         resultCtx.scale(1, 0.6);
-
         const ellipseGrad = createGradient(baseColor, 0, 0, scale);
         resultCtx.fillStyle = ellipseGrad;
         resultCtx.beginPath();
         resultCtx.arc(0, 0, scale, 0, Math.PI * 2);
         resultCtx.fill();
-
-        // Rim
         resultCtx.strokeStyle = baseColor;
         resultCtx.lineWidth = 3;
         resultCtx.beginPath();
@@ -1245,13 +1315,10 @@ function initConicsLab() {
         break;
 
       case 'Parabola':
-        // Filled parabola shape (U with base)
         const parabolaPath = new Path2D();
         const steps = 40;
         const width = scale * 1.8;
         const depth = scale * 0.9;
-
-        // Build the filled U shape
         parabolaPath.moveTo(cx - width/2, cy + depth);
         for (let i = 0; i <= steps; i++) {
           const t = (i / steps) * width - width/2;
@@ -1260,77 +1327,49 @@ function initConicsLab() {
         }
         parabolaPath.lineTo(cx + width/2, cy + depth);
         parabolaPath.closePath();
-
-        // Fill with vertical gradient for depth
         const paraGrad = resultCtx.createLinearGradient(cx, cy - depth, cx, cy + depth);
         paraGrad.addColorStop(0, baseColor + 'aa');
         paraGrad.addColorStop(0.5, baseColor + '66');
         paraGrad.addColorStop(1, baseColor + '22');
         resultCtx.fillStyle = paraGrad;
         resultCtx.fill(parabolaPath);
-
-        // Rim
         resultCtx.strokeStyle = baseColor;
         resultCtx.lineWidth = 3;
         resultCtx.stroke(parabolaPath);
-
-        // Inner highlight line
-        resultCtx.strokeStyle = baseColor + '66';
-        resultCtx.lineWidth = 8;
-        resultCtx.beginPath();
-        for (let i = 0; i <= steps; i++) {
-          const t = (i / steps) * width - width/2;
-          const y = (t * t) / (width * 0.5) + 5;
-          if (i === 0) resultCtx.moveTo(cx + t, cy + y);
-          else resultCtx.lineTo(cx + t, cy + y);
-        }
-        resultCtx.stroke();
         break;
 
       case 'Hyperbola':
-        // Two filled hyperbola branches
-        const a = scale * 0.35, b = scale * 0.55;
-
+        const ha = scale * 0.35, hb = scale * 0.55;
         for (let side of [-1, 1]) {
           const branchPath = new Path2D();
           let first = true;
-
-          // Top curve
           for (let t = 0.5; t <= 3.5; t += 0.08) {
-            const x = side * a * Math.cosh(t);
-            const y = b * Math.sinh(t) - scale * 0.3;
+            const x = side * ha * Math.cosh(t);
+            const y = hb * Math.sinh(t) - scale * 0.3;
             if (Math.abs(x) < scale && Math.abs(y) < scale) {
               if (first) { branchPath.moveTo(cx + x, cy + y); first = false; }
               else branchPath.lineTo(cx + x, cy + y);
             }
           }
-          // Bottom curve (reverse)
           for (let t = 3.5; t >= 0.5; t -= 0.08) {
-            const x = side * a * Math.cosh(t);
-            const y = -b * Math.sinh(t) - scale * 0.3;
+            const x = side * ha * Math.cosh(t);
+            const y = -hb * Math.sinh(t) - scale * 0.3;
             if (Math.abs(x) < scale && Math.abs(y) < scale) {
               branchPath.lineTo(cx + x, cy + y);
             }
           }
           branchPath.closePath();
-
-          // Fill with gradient
           const hx = cx + side * scale * 0.5;
-          const hy = cy - scale * 0.3;
-          const hyperGrad = createGradient(baseColor, hx, hy, scale * 0.6);
+          const hyperGrad = createGradient(baseColor, hx, cy - scale * 0.3, scale * 0.6);
           resultCtx.fillStyle = hyperGrad;
           resultCtx.fill(branchPath);
-
-          // Rim
           resultCtx.strokeStyle = baseColor;
           resultCtx.lineWidth = 3;
-
-          // Redraw rim without closing line
           resultCtx.beginPath();
           first = true;
           for (let t = 0.5; t <= 3.5; t += 0.08) {
-            const x = side * a * Math.cosh(t);
-            const y = b * Math.sinh(t) - scale * 0.3;
+            const x = side * ha * Math.cosh(t);
+            const y = hb * Math.sinh(t) - scale * 0.3;
             if (Math.abs(x) < scale && Math.abs(y) < scale) {
               if (first) { resultCtx.moveTo(cx + x, cy + y); first = false; }
               else resultCtx.lineTo(cx + x, cy + y);
@@ -1343,13 +1382,13 @@ function initConicsLab() {
 
     resultCtx.restore();
 
-    // Label with glow
+    // Label
     resultCtx.fillStyle = '#ffffff';
-    resultCtx.font = 'bold 18px "Space Grotesk"';
+    resultCtx.font = 'bold 16px "Space Grotesk"';
     resultCtx.textAlign = 'center';
     resultCtx.shadowColor = baseColor;
     resultCtx.shadowBlur = 15;
-    resultCtx.fillText(curveType.name, cx, h - 25);
+    resultCtx.fillText(curveType.name, cx, h - 20);
     resultCtx.shadowBlur = 0;
   }
 
@@ -1382,44 +1421,48 @@ function initConicsLab() {
 
   function draw() {
     const w = canvas.width, h = canvas.height;
-    const cx = w / 2, cy = h / 2 + 50;
+    const cx = w / 2, cy = h / 2;
 
-    // Clear with slight trail effect
-    ctx.fillStyle = 'rgba(10, 14, 26, 0.3)';
+    animTime += 0.016;
+
+    // Full clear for crisp rendering
+    ctx.fillStyle = 'rgba(10, 14, 26, 1)';
+    ctx.fillRect(0, 0, w, h);
+
+    // Subtle radial background glow
+    const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, w * 0.6);
+    bgGrad.addColorStop(0, 'rgba(16, 185, 129, 0.03)');
+    bgGrad.addColorStop(1, 'rgba(10, 14, 26, 0)');
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, w, h);
 
     // Determine curve type with stability
     const newCurve = getCurveType(currentAngle, lastCurveName);
 
-    // Require 3 consistent frames before changing label (stability)
     if (newCurve.name !== lastCurveName) {
       curveStabilityCounter++;
-      if (curveStabilityCounter < 3) {
-        // Keep old name but use new visual
-      } else {
+      if (curveStabilityCounter >= 3) {
         lastCurveName = newCurve.name;
         curveStabilityCounter = 0;
-        // Update label only when stable
         if (curveLabel) {
-          curveLabel.innerHTML = `You created: <span style="color:${newCurve.color}">${newCurve.name}</span><small style="display:block;margin-top:4px;font-size:0.75rem;color:var(--text-muted)">${newCurve.desc}</small>`;
+          curveLabel.innerHTML = `<div class="curve-label-tag">You created</div><div class="curve-label-name"><span style="color:${newCurve.color}">${newCurve.name}</span><small>${newCurve.desc}</small></div>`;
         }
       }
     } else {
       curveStabilityCounter = 0;
     }
 
-    // Subtle pulse based on curve type change
     const pulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
 
-    // Draw elements back-to-front
-    drawCone(cx, cy, pulse * 0.5);
+    // Draw elements
+    drawDoubleCone(cx, cy, pulse * 0.5);
     drawPlane(cx, cy, currentAngle, currentHeight, newCurve, pulse);
 
     // Draw curve result visualization
     animateCurveTransition();
   }
 
-  // Event listeners - trigger animation on input
+  // Event listeners
   angleSlider?.addEventListener('input', triggerAnimation);
   heightSlider?.addEventListener('input', triggerAnimation);
 
@@ -1428,18 +1471,16 @@ function initConicsLab() {
   currentAngle = targetAngle;
   currentHeight = targetHeight;
 
-  // Set initial label
   const initialCurve = getCurveType(currentAngle, '');
   lastCurveName = initialCurve.name;
   targetCurveName = initialCurve.name;
   if (curveLabel) {
-    curveLabel.innerHTML = `You created: <span style="color:${initialCurve.color}">${initialCurve.name}</span><small style="display:block;margin-top:4px;font-size:0.75rem;color:var(--text-muted)">${initialCurve.desc}</small>`;
+    curveLabel.innerHTML = `<div class="curve-label-tag">You created</div><div class="curve-label-name"><span style="color:${initialCurve.color}">${initialCurve.name}</span><small>${initialCurve.desc}</small></div>`;
   }
 
-  // Start animation loop
   draw();
 
-  // AI Tutor functionality - Conic Module
+  // AI Tutor functionality
   initAITutorForModule('conic', () => ({
     curve: getCurveType(currentAngle, lastCurveName).name,
     angle: Math.round(currentAngle)
@@ -1657,6 +1698,13 @@ function initFocusDirectrixLab() {
   const focusYVal = document.getElementById('focusYVal');
   const directrixYVal = document.getElementById('directrixYVal');
   const toggleBtn = document.getElementById('toggleAnimation');
+  const proofDisplay = document.getElementById('fdProofDisplay');
+  const proofPF = document.getElementById('proofPF');
+  const proofPD = document.getElementById('proofPD');
+  const proofConclusion = document.getElementById('proofConclusion');
+  const derivationBtn = document.getElementById('derivationBtn');
+  const derivationOverlay = document.getElementById('derivationOverlay');
+  const closeDerivation = document.getElementById('closeDerivation');
 
   // Animation state
   let currentFocusY = 80;
@@ -1666,6 +1714,8 @@ function initFocusDirectrixLab() {
   let isAnimating = true;
   let tracerT = 0;
   let tracerSpeed = 0.015;
+  let pausedPF = 0;
+  let pausedPD = 0;
 
   function lerp(start, end, t) {
     return start + (end - start) * t;
@@ -1804,12 +1854,17 @@ function initFocusDirectrixLab() {
     const focusCanvasY = toCanvasY(500, fY, cy, scale);
     const directrixCanvasY = toCanvasY(500, dY, cy, scale);
 
-    // Draw distance lines
+    const isPaused = !isAnimating;
+
+    // Calculate distances
+    const distPF = Math.sqrt(x * x + (y - fY) * (y - fY));
+    const distPD = Math.abs(y - dY);
+
     ctx.save();
 
     // Line to focus (PF)
-    ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = isPaused ? 'rgba(239, 68, 68, 0.85)' : 'rgba(239, 68, 68, 0.5)';
+    ctx.lineWidth = isPaused ? 3 : 2;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
     ctx.moveTo(pointX, pointY);
@@ -1817,7 +1872,7 @@ function initFocusDirectrixLab() {
     ctx.stroke();
 
     // Line to directrix (PD)
-    ctx.strokeStyle = 'rgba(6, 182, 212, 0.5)';
+    ctx.strokeStyle = isPaused ? 'rgba(6, 182, 212, 0.85)' : 'rgba(6, 182, 212, 0.5)';
     ctx.beginPath();
     ctx.moveTo(pointX, pointY);
     ctx.lineTo(pointX, directrixCanvasY);
@@ -1828,25 +1883,106 @@ function initFocusDirectrixLab() {
     // Draw tracer point
     ctx.fillStyle = '#10b981';
     ctx.shadowColor = 'rgba(16, 185, 129, 0.8)';
-    ctx.shadowBlur = 15;
+    ctx.shadowBlur = isPaused ? 25 : 15;
     ctx.beginPath();
-    ctx.arc(pointX, pointY, 8, 0, Math.PI * 2);
+    ctx.arc(pointX, pointY, isPaused ? 10 : 8, 0, Math.PI * 2);
     ctx.fill();
 
+    // When paused, draw a ring around the point
+    if (isPaused) {
+      ctx.strokeStyle = 'rgba(16, 185, 129, 0.6)';
+      ctx.lineWidth = 2;
+      const pulseRadius = 14 + Math.sin(Date.now() / 300) * 4;
+      ctx.beginPath();
+      ctx.arc(pointX, pointY, pulseRadius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
     // Label P
+    ctx.shadowBlur = 0;
     ctx.fillStyle = '#10b981';
-    ctx.font = 'bold 13px Outfit';
-    ctx.fillText('P', pointX + 12, pointY - 8);
+    ctx.font = isPaused ? 'bold 15px Outfit' : 'bold 13px Outfit';
+    ctx.fillText('P', pointX + 14, pointY - 10);
 
     // Show distances
-    const distPF = Math.abs(y - fY);
-    const distPD = Math.abs(y - dY);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.font = '11px Outfit';
-    ctx.fillText(`PF = ${distPF.toFixed(1)}`, pointX + 15, pointY + 5);
-    ctx.fillText(`PD = ${distPD.toFixed(1)}`, pointX + 15, pointY + 18);
+    if (isPaused) {
+      // Draw enhanced distance labels with background
+      const labelX = pointX + 18;
+      const labelPFY = pointY + 4;
+      const labelPDY = pointY + 22;
+
+      // PF label background
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(labelX - 4, labelPFY - 12, 95, 18, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      // PD label background
+      ctx.fillStyle = 'rgba(6, 182, 212, 0.15)';
+      ctx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
+      ctx.beginPath();
+      ctx.roundRect(labelX - 4, labelPDY - 12, 95, 18, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      // PF text
+      ctx.fillStyle = '#ef4444';
+      ctx.font = 'bold 12px "JetBrains Mono", monospace';
+      ctx.fillText(`PF = ${distPF.toFixed(1)}`, labelX, labelPFY);
+
+      // PD text
+      ctx.fillStyle = '#06b6d4';
+      ctx.fillText(`PD = ${distPD.toFixed(1)}`, labelX, labelPDY);
+
+      // Draw equals badge on canvas
+      const midX = (pointX + cx) / 2;
+      const midY = (pointY + focusCanvasY) / 2;
+      ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
+      ctx.strokeStyle = 'rgba(16, 185, 129, 0.5)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(midX - 30, midY - 12, 60, 24, 12);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#10b981';
+      ctx.font = 'bold 11px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('PF = PD', midX, midY + 4);
+      ctx.textAlign = 'start';
+    } else {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.font = '11px Outfit';
+      ctx.fillText(`PF = ${distPF.toFixed(1)}`, pointX + 15, pointY + 5);
+      ctx.fillText(`PD = ${distPD.toFixed(1)}`, pointX + 15, pointY + 18);
+    }
+
+    // Store for proof display
+    pausedPF = distPF;
+    pausedPD = distPD;
 
     ctx.restore();
+  }
+
+  function updateProofDisplay() {
+    if (!proofDisplay) return;
+    if (!isAnimating) {
+      proofDisplay.classList.add('visible');
+      if (proofPF) proofPF.textContent = pausedPF.toFixed(2);
+      if (proofPD) proofPD.textContent = pausedPD.toFixed(2);
+      if (proofConclusion) {
+        const diff = Math.abs(pausedPF - pausedPD);
+        if (diff < 0.1) {
+          proofConclusion.innerHTML = '✅ <strong>PF = PD</strong> — Verified! The point lies on the parabola.';
+        } else {
+          proofConclusion.innerHTML = `PF ≈ PD (difference: ${diff.toFixed(4)}) — due to rounding`;
+        }
+      }
+    } else {
+      proofDisplay.classList.remove('visible');
+    }
   }
 
   function updateTargets() {
@@ -1863,8 +1999,13 @@ function initFocusDirectrixLab() {
     if (focusYVal) focusYVal.textContent = Math.round(currentFocusY);
     if (directrixYVal) directrixYVal.textContent = Math.round(currentDirectrixY);
 
-    // Clear canvas with trail effect
-    ctx.fillStyle = 'rgba(10, 14, 26, 0.25)';
+    // Clear canvas
+    if (!isAnimating) {
+      // When paused, clear fully for crisp display
+      ctx.fillStyle = 'rgba(10, 14, 26, 1)';
+    } else {
+      ctx.fillStyle = 'rgba(10, 14, 26, 0.25)';
+    }
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const w = canvas.width, h = canvas.height;
@@ -1884,11 +2025,16 @@ function initFocusDirectrixLab() {
     }
     drawTracer(cx, cy, currentFocusY, currentDirectrixY, scale, tracerT);
 
+    // Update proof display if paused
+    if (!isAnimating) {
+      updateProofDisplay();
+    }
+
     // Continue animation
     const focusDiff = Math.abs(currentFocusY - targetFocusY);
     const directrixDiff = Math.abs(currentDirectrixY - targetDirectrixY);
 
-    if (focusDiff > 0.1 || directrixDiff > 0.1 || isAnimating) {
+    if (focusDiff > 0.1 || directrixDiff > 0.1 || isAnimating || !isAnimating) {
       fdAnimationId = requestAnimationFrame(animate);
     } else {
       fdAnimationId = null;
@@ -1908,9 +2054,39 @@ function initFocusDirectrixLab() {
 
   toggleBtn?.addEventListener('click', () => {
     isAnimating = !isAnimating;
-    toggleBtn.textContent = isAnimating ? '⏸ Pause Tracing' : '▶ Resume Tracing';
-    if (isAnimating && !fdAnimationId) {
+    if (isAnimating) {
+      toggleBtn.innerHTML = '<span class="fd-btn-icon">⏸</span> Pause & Verify PF = PD';
+      toggleBtn.classList.remove('paused');
+      proofDisplay?.classList.remove('visible');
+    } else {
+      toggleBtn.innerHTML = '<span class="fd-btn-icon">▶</span> Resume Tracing';
+      toggleBtn.classList.add('paused');
+      // Trigger proof display with animation
+      setTimeout(() => updateProofDisplay(), 100);
+    }
+    if (!fdAnimationId) {
       fdAnimationId = requestAnimationFrame(animate);
+    }
+  });
+
+  // Derivation modal
+  derivationBtn?.addEventListener('click', () => {
+    derivationOverlay?.classList.add('visible');
+    document.body.style.overflow = 'hidden';
+  });
+
+  function closeModal() {
+    derivationOverlay?.classList.remove('visible');
+    document.body.style.overflow = '';
+  }
+
+  closeDerivation?.addEventListener('click', closeModal);
+  derivationOverlay?.addEventListener('click', (e) => {
+    if (e.target === derivationOverlay) closeModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && derivationOverlay?.classList.contains('visible')) {
+      closeModal();
     }
   });
 
