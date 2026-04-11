@@ -2603,3 +2603,464 @@ document.addEventListener('DOMContentLoaded', () => {
   initThemeToggle();
   // Math labs init lazily when Maths nav or sub-tabs are clicked
 });
+
+// ====================================================
+// SYNTHOQUEST — Chemistry Synthesis Puzzle Game
+// (Stitched inline — scoped inside .syntho-host)
+// ====================================================
+
+const SynthoGame = (() => {
+  // ── Game State ──────────────────────────────────────
+  const GS = {
+    currentScreen: 'menu',
+    currentLevel: 1,
+    score: 0,
+    timeRemaining: 120,
+    timerInterval: null,
+    attempts: 2,
+    wrongAttempts: 0,
+    pathway: [],
+    currentMolecule: null,
+    targetMolecule: null,
+    isGameActive: false,
+    xp: 0, streak: 0, badges: 0
+  };
+
+  // ── Chemistry Data ──────────────────────────────────
+  const Chem = {
+    reactions: [
+      { id:'nitration',   name:'Nitration',                  formula:'HNO₃/H₂SO₄',  icon:'🔴', description:'Adds nitro group (−NO₂) via electrophilic aromatic substitution',  applicableTo:['benzene','toluene','chlorobenzene'], result:{benzene:'nitrobenzene',toluene:'nitrotoluene',chlorobenzene:'nitrochlorobenzene'} },
+      { id:'sulfonation', name:'Sulfonation',                formula:'SO₃/H₂SO₄',   icon:'🟡', description:'Adds sulfonic acid group (−SO₃H) — reversible EAS',                applicableTo:['benzene','toluene'],                  result:{benzene:'benzenesulfonic_acid',toluene:'toluenesulfonic_acid'} },
+      { id:'halogenation',name:'Halogenation',               formula:'X₂/FeX₃',     icon:'🟢', description:'Adds halogen (Cl/Br) via Lewis acid-catalysed EAS',                applicableTo:['benzene','nitrobenzene'],             result:{benzene:'chlorobenzene',nitrobenzene:'nitrochlorobenzene'} },
+      { id:'reduction',   name:'Reduction',                  formula:'Sn/HCl or H₂/Pd',icon:'🔵',description:'Reduces −NO₂ → −NH₂ (aniline formation)',                    applicableTo:['nitrobenzene','nitrotoluene'],        result:{nitrobenzene:'aniline',nitrotoluene:'toluidine'} },
+      { id:'acylation',   name:'Friedel-Crafts Acylation',   formula:'RCOCl/AlCl₃', icon:'🟠', description:'Adds acyl group via Lewis acid catalysis',                        applicableTo:['benzene','toluene'],                  result:{benzene:'acetophenone',toluene:'methylacetophenone'} },
+      { id:'alkylation',  name:'Friedel-Crafts Alkylation',  formula:'R-Cl/AlCl₃',  icon:'🟣', description:'Adds alkyl group via carbocation electrophile',                   applicableTo:['benzene'],                            result:{benzene:'toluene'} }
+    ],
+    molecules: {
+      benzene:{name:'Benzene',formula:'C₆H₆'},
+      nitrobenzene:{name:'Nitrobenzene',formula:'C₆H₅NO₂'},
+      toluene:{name:'Toluene',formula:'C₆H₅CH₃'},
+      chlorobenzene:{name:'Chlorobenzene',formula:'C₆H₅Cl'},
+      aniline:{name:'Aniline',formula:'C₆H₅NH₂'},
+      benzenesulfonic_acid:{name:'Benzenesulfonic Acid',formula:'C₆H₅SO₃H'},
+      nitrotoluene:{name:'Nitrotoluene',formula:'C₆H₄(CH₃)NO₂'},
+      nitrochlorobenzene:{name:'Nitrochlorobenzene',formula:'C₆H₄ClNO₂'},
+      acetophenone:{name:'Acetophenone',formula:'C₆H₅COCH₃'},
+      methylacetophenone:{name:'Methylacetophenone',formula:'C₆H₄(CH₃)COCH₃'},
+      toluidine:{name:'Toluidine',formula:'C₆H₄(CH₃)NH₂'},
+      toluenesulfonic_acid:{name:'Toluenesulfonic Acid',formula:'C₆H₄(CH₃)SO₃H'}
+    }
+  };
+
+  const Levels = [
+    {
+      id:1, name:'First Reaction', difficulty:'BEGINNER', diffClass:'beginner',
+      startMolecule:'benzene', targetMolecule:'nitrobenzene',
+      timeLimit:120, optimalSteps:1, optimalPath:['nitration'],
+      hint:'Benzene is easily nitrated — add a nitro group using HNO₃ and H₂SO₄.',
+      explanation:`<h4>🔬 Nitration of Benzene → Nitrobenzene</h4><p>Classic <strong>Electrophilic Aromatic Substitution (EAS)</strong>. H₂SO₄ generates nitronium ion (NO₂⁺) which attacks benzene's π system.</p><p class="reaction-eq">HNO₃ + H₂SO₄ → NO₂⁺ + HSO₄⁻ + H₂O</p><ul><li>Keep temperature below 55°C to prevent di-nitration</li><li>Product: yellow oily liquid used to make aniline</li></ul>`
+    },
+    {
+      id:2, name:'Double Transformation', difficulty:'INTERMEDIATE', diffClass:'intermediate',
+      startMolecule:'benzene', targetMolecule:'aniline',
+      timeLimit:120, optimalSteps:2, optimalPath:['nitration','reduction'],
+      hint:'Two steps: first introduce a nitro group, then reduce it to an amino group.',
+      explanation:`<h4>🔬 Benzene → Nitrobenzene → Aniline</h4><h5>Step 1 — Nitration</h5><p>HNO₃/H₂SO₄ gives nitrobenzene.</p><h5>Step 2 — Reduction</h5><p class="reaction-eq">C₆H₅−NO₂ + 3[H₂] →(Sn/HCl) C₆H₅−NH₂ + 2H₂O</p><ul><li>Aniline is a precursor to azo dyes and polyurethanes</li></ul>`
+    },
+    {
+      id:3, name:'Aromatic Mastery', difficulty:'ADVANCED', diffClass:'advanced',
+      startMolecule:'benzene', targetMolecule:'toluidine',
+      timeLimit:120, optimalSteps:3, optimalPath:['alkylation','nitration','reduction'],
+      hint:'Three steps: add a methyl group (Friedel-Crafts), then nitrate, then reduce.',
+      explanation:`<h4>🔬 Benzene → Toluene → Nitrotoluene → Toluidine</h4><h5>Step 1 — Friedel-Crafts Alkylation</h5><p class="reaction-eq">C₆H₆ + CH₃Cl →(AlCl₃) C₆H₅CH₃ + HCl</p><h5>Step 2 — Directed Nitration</h5><p>Methyl group is ortho/para-director — NO₂⁺ attacks 2- and 4-positions.</p><h5>Step 3 — Reduction</h5><p>−NO₂ → −NH₂ via Sn/HCl giving toluidine.</p>`
+    }
+  ];
+
+  // ── Element Cache ───────────────────────────────────
+  const El = {};
+  function $ (id) { return El[id] || (El[id] = document.getElementById(id)); }
+
+  // ── Screen Switching ────────────────────────────────
+  function showScreen(screenId) {
+    document.querySelectorAll('.syntho-screen').forEach(s => s.classList.remove('syntho-active'));
+    const s = document.getElementById(screenId);
+    if (s) s.classList.add('syntho-active');
+    GS.currentScreen = screenId;
+  }
+
+  // ── Persistence ─────────────────────────────────────
+  function loadProgress() {
+    try {
+      const d = JSON.parse(localStorage.getItem('synthoquest_progress') || '{}');
+      GS.xp = d.xp||0; GS.streak = d.streak||0; GS.badges = d.badges||0;
+    } catch(e) {}
+  }
+  function saveProgress() {
+    localStorage.setItem('synthoquest_progress', JSON.stringify({xp:GS.xp,streak:GS.streak,badges:GS.badges}));
+  }
+
+  // ── Menu ────────────────────────────────────────────
+  function updateMenuStats() {
+    const ranks = [[0,'Novice'],[100,'Apprentice'],[300,'Chemist'],[500,'Expert'],[1000,'Master']];
+    const rank = [...ranks].reverse().find(([xp]) => GS.xp >= xp)?.[1] || 'Novice';
+    const ml = $('menuLevel'); if(ml) ml.textContent = rank;
+    const mx = $('menuXP');    if(mx) mx.textContent = GS.xp;
+    const ms = $('menuStreak');if(ms) ms.textContent = GS.streak;
+    const mb = $('menuBadges');if(mb) mb.textContent = GS.badges;
+  }
+
+  function renderLevelGrid() {
+    const grid = $('levelGrid'); if (!grid) return;
+    grid.innerHTML = '';
+    Levels.forEach(level => {
+      const btn = document.createElement('button');
+      btn.className = 'level-card';
+      btn.innerHTML = `<span class="level-num">${level.id}</span><span class="level-card-name">${level.name}</span><span class="level-card-diff">${level.difficulty}</span>`;
+      btn.addEventListener('click', () => startLevel(level.id));
+      grid.appendChild(btn);
+    });
+  }
+
+  function setupDailyChallenge() {
+    const dd = $('dailyDesc');
+    if (dd) { const idx = new Date().getDate() % Levels.length; dd.textContent = `${Levels[idx].name} — ${Levels[idx].difficulty}`; }
+    $('dailyBtn')?.addEventListener('click', () => { const idx = new Date().getDate() % Levels.length; startLevel(Levels[idx].id); });
+  }
+
+  // ── Start Level ─────────────────────────────────────
+  function startLevel(levelId) {
+    const level = Levels.find(l => l.id === levelId);
+    if (!level) return;
+    GS.currentLevel=levelId; GS.score=0; GS.timeRemaining=level.timeLimit;
+    GS.attempts=2; GS.wrongAttempts=0; GS.pathway=[];
+    GS.currentMolecule=level.startMolecule; GS.targetMolecule=level.targetMolecule;
+    GS.isGameActive=true;
+
+    const set = (id,v) => { const e=$( id); if(e) e.textContent=v; };
+    const setClass = (id,c) => { const e=$(id); if(e) e.className=c; };
+    set('levelNum', level.id); set('levelName', level.name);
+    set('diffBadge', level.difficulty); setClass('diffBadge', `diff-badge ${level.diffClass}`);
+    set('startMolName', Chem.molecules[level.startMolecule].name);
+    set('targetMolName', Chem.molecules[level.targetMolecule].name);
+    set('currentMolDisplay', Chem.molecules[level.startMolecule].name);
+    set('scoreDisplay','0'); set('attemptsDisplay','2'); set('stepCount','0');
+    set('timerDisplay', formatTime(120));
+    const tb=$('timerBox'); if(tb) tb.classList.remove('urgent');
+    const ab=$('attemptsBox'); if(ab) ab.classList.remove('attempt-warning');
+    const sd=$('starsDisplay'); if(sd) sd.innerHTML='<span class="star">☆</span><span class="star">☆</span><span class="star">☆</span>';
+
+    renderReactions(); renderPathway();
+    addTutorMsg(`Welcome to <strong>${level.name}</strong>! 🧬<br>Convert <em>${Chem.molecules[level.startMolecule].name}</em> into <em>${Chem.molecules[level.targetMolecule].name}</em>. 2 minutes, 2 attempts!`, 'info');
+    const wh=$('workspaceHint'); if(wh) wh.textContent='Click a reaction from the toolbar to begin your synthesis pathway';
+
+    hideAllModals();
+    showScreen('synthoGameScreen');
+    startTimer();
+  }
+
+  // ── Timer ───────────────────────────────────────────
+  function startTimer() {
+    clearInterval(GS.timerInterval);
+    GS.timerInterval = setInterval(() => {
+      if (!GS.isGameActive) { clearInterval(GS.timerInterval); return; }
+      GS.timeRemaining--;
+      const td=$('timerDisplay'); if(td) td.textContent=formatTime(GS.timeRemaining);
+      if (GS.timeRemaining <= 30) { const tb=$('timerBox'); if(tb) tb.classList.add('urgent'); }
+      if (GS.timeRemaining <= 0) endGame('timeUp');
+    }, 1000);
+  }
+
+  function formatTime(s) { return `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`; }
+
+  function endGame(reason) {
+    GS.isGameActive = false;
+    clearInterval(GS.timerInterval);
+    if      (reason==='timeUp')    showTimeUpModal();
+    else if (reason==='failed')    showFailedModal();
+    else if (reason==='completed') showCompletionModal();
+  }
+
+  // ── Render Reactions ────────────────────────────────
+  function reactionColor(id) {
+    return ({nitration:'rgba(239,68,68,0.15)',sulfonation:'rgba(245,158,11,0.15)',halogenation:'rgba(34,197,94,0.15)',reduction:'rgba(0,212,255,0.15)',acylation:'rgba(249,115,22,0.15)',alkylation:'rgba(168,85,247,0.15)'})[id]||'rgba(255,255,255,0.05)';
+  }
+
+  function renderReactions() {
+    const list=$('reactionList'); if(!list) return;
+    list.innerHTML='';
+    Chem.reactions.forEach(rxn => {
+      const applicable = rxn.applicableTo.includes(GS.currentMolecule);
+      const card=document.createElement('button');
+      card.className=`reaction-card ${applicable?'available':'unavailable'}`;
+      if(!applicable||!GS.isGameActive) card.disabled=true;
+      card.innerHTML=`<div class="rxn-icon" style="background:${reactionColor(rxn.id)}">${rxn.icon}</div><div class="rxn-info"><span class="rxn-name">${rxn.name}</span><span class="rxn-reagent">${rxn.formula}</span></div><div class="rxn-tooltip"><div class="rxn-tooltip-title">${rxn.name}</div><div class="rxn-tooltip-desc">${rxn.description}</div><div class="rxn-tooltip-mech">${rxn.formula}</div></div>`;
+      if (applicable && GS.isGameActive) card.addEventListener('click', () => applyReaction(rxn));
+      list.appendChild(card);
+    });
+  }
+
+  // ── Apply Reaction ──────────────────────────────────
+  function applyReaction(rxn) {
+    if (!GS.isGameActive) return;
+    const resultMol = rxn.result[GS.currentMolecule];
+    if (!resultMol) return;
+
+    GS.pathway.push({reaction:rxn.id, from:GS.currentMolecule, to:resultMol});
+    GS.currentMolecule = resultMol;
+    const cmd=$('currentMolDisplay'); if(cmd) cmd.textContent=Chem.molecules[resultMol].name;
+    const sc=$('stepCount'); if(sc) sc.textContent=GS.pathway.length;
+
+    renderPathway(); renderReactions();
+
+    if (GS.currentMolecule === GS.targetMolecule) {
+      const level=Levels[GS.currentLevel-1];
+      const pts = Math.max(100+Math.floor(GS.timeRemaining/2)-Math.max(0,GS.pathway.length-level.optimalSteps)*10, 50);
+      GS.score=pts;
+      const sd=$('scoreDisplay'); if(sd) sd.textContent=pts;
+      updateStarsDisplay(calculateStars());
+      flashScreen('flash-green');
+      addTutorMsg(`🎉 Excellent! You synthesised <strong>${Chem.molecules[GS.targetMolecule].name}</strong>!`, 'success');
+      setTimeout(() => endGame('completed'), 800);
+      return;
+    }
+
+    const canContinue = Chem.reactions.some(r => r.applicableTo.includes(GS.currentMolecule) && r.result[GS.currentMolecule]);
+    if (!canContinue) {
+      GS.wrongAttempts++; GS.attempts--;
+      const ad=$('attemptsDisplay'); if(ad) ad.textContent=GS.attempts;
+      if (GS.attempts<=1) { const ab=$('attemptsBox'); if(ab) ab.classList.add('attempt-warning'); }
+      flashScreen('flash-red');
+      addTutorMsg(`⚠️ Dead end! <strong>${GS.attempts}</strong> attempt(s) left.`, 'error');
+      if (GS.attempts <= 0) { setTimeout(() => endGame('failed'), 1000); }
+      else {
+        setTimeout(() => {
+          GS.pathway=[]; GS.currentMolecule=Levels[GS.currentLevel-1].startMolecule;
+          const cmd=$('currentMolDisplay'); if(cmd) cmd.textContent=Chem.molecules[GS.currentMolecule].name;
+          const sc=$('stepCount'); if(sc) sc.textContent='0';
+          renderPathway(); renderReactions();
+          addTutorMsg('🔄 Pathway reset. Try a different route!','info');
+        }, 1200);
+      }
+    } else {
+      addTutorMsg(`➡ Applied <strong>${rxn.name}</strong>. Now at: <em>${Chem.molecules[resultMol].name}</em>.`,'info');
+      const wh=$('workspaceHint'); if(wh) wh.textContent=`Current: ${Chem.molecules[resultMol].name} — choose the next reaction`;
+    }
+  }
+
+  // ── Render Pathway ──────────────────────────────────
+  function renderPathway() {
+    const track=$('pathwayTrack'); if(!track) return;
+    track.innerHTML='';
+    const level=Levels[GS.currentLevel-1];
+    track.appendChild(makeNode(Chem.molecules[level.startMolecule].name, Chem.molecules[level.startMolecule].formula, 'start'));
+    GS.pathway.forEach((step,i) => {
+      const rxnData=Chem.reactions.find(r=>r.id===step.reaction);
+      track.appendChild(makeConnector(rxnData?rxnData.name:step.reaction));
+      const isLast=(i===GS.pathway.length-1);
+      const isTarget=step.to===GS.targetMolecule;
+      track.appendChild(makeNode(Chem.molecules[step.to].name, Chem.molecules[step.to].formula, isTarget?'correct':(isLast?'current':'')));
+    });
+  }
+
+  function makeNode(name, formula, state='') {
+    const node=document.createElement('div');
+    node.className='pathway-node';
+    node.innerHTML=`<div class="node-mol-container ${state}"><canvas width="80" height="60"></canvas><div class="node-mol-name">${name}</div></div>`;
+    drawMolecule(node.querySelector('canvas'), name);
+    return node;
+  }
+
+  function makeConnector(label) {
+    const conn=document.createElement('div');
+    conn.className='pathway-connector';
+    conn.innerHTML=`<div class="connector-arrow"></div><div class="connector-label">${label}</div>`;
+    return conn;
+  }
+
+  function drawMolecule(canvas, name) {
+    const ctx=canvas.getContext('2d');
+    const w=canvas.width, h=canvas.height, cx=w/2, cy=h/2-6, r=Math.min(w,h)*0.28;
+    ctx.clearRect(0,0,w,h);
+    ctx.beginPath();
+    for(let i=0;i<6;i++){const a=(Math.PI/3)*i-Math.PI/6;const x=cx+r*Math.cos(a);const y=cy+r*Math.sin(a);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
+    ctx.closePath(); ctx.strokeStyle='#60a5fa'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx,cy,r*0.55,0,Math.PI*2); ctx.strokeStyle='rgba(96,165,250,0.4)'; ctx.lineWidth=1; ctx.stroke();
+    ctx.fillStyle='#e2e8f0'; ctx.font='bold 9px monospace'; ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.fillText(name.slice(0,3),cx,cy+r+3);
+  }
+
+  // ── Undo / Clear ────────────────────────────────────
+  function undoStep() {
+    if (!GS.isGameActive||GS.pathway.length===0) return;
+    const last=GS.pathway.pop();
+    GS.currentMolecule=last.from;
+    const cmd=$('currentMolDisplay'); if(cmd) cmd.textContent=Chem.molecules[last.from].name;
+    const sc=$('stepCount'); if(sc) sc.textContent=GS.pathway.length;
+    renderPathway(); renderReactions();
+    addTutorMsg('↩ Step undone — try a different reaction.','hint');
+  }
+
+  function clearPathway() {
+    if (!GS.isGameActive) return;
+    GS.pathway=[]; GS.currentMolecule=Levels[GS.currentLevel-1].startMolecule;
+    const cmd=$('currentMolDisplay'); if(cmd) cmd.textContent=Chem.molecules[GS.currentMolecule].name;
+    const sc=$('stepCount'); if(sc) sc.textContent='0';
+    const wh=$('workspaceHint'); if(wh) wh.textContent='Click a reaction from the toolbar to begin';
+    renderPathway(); renderReactions();
+    addTutorMsg('🗑 Pathway cleared. Start fresh!','hint');
+  }
+
+  // ── Tutor ───────────────────────────────────────────
+  function showHint() { const level=Levels[GS.currentLevel-1]; addTutorMsg(`💡 <strong>Hint:</strong> ${level.hint}`,'hint'); }
+  function showExplainPanel() { const level=Levels[GS.currentLevel-1]; addTutorMsg(`📖 <strong>Explanation:</strong><br>${level.explanation}`,'hint'); }
+
+  function addTutorMsg(html, type='info') {
+    const tm=$('tutorMessages'); if(!tm) return;
+    const div=document.createElement('div'); div.className=`tutor-msg ${type}`; div.innerHTML=html;
+    tm.appendChild(div); tm.scrollTop=tm.scrollHeight;
+  }
+
+  // ── Modals ──────────────────────────────────────────
+  function buildOptimalPathHTML(level) {
+    let mol=level.startMolecule;
+    let html=`<div class="optimal-steps"><span class="opt-step">${Chem.molecules[mol].name}</span>`;
+    level.optimalPath.forEach(rxnId => {
+      const rxn=Chem.reactions.find(r=>r.id===rxnId); if(!rxn) return;
+      mol=rxn.result[mol];
+      html+=`<span class="opt-arrow">→</span><span class="opt-step">${rxn.name}</span><span class="opt-arrow">→</span><span class="opt-step solution-step">${Chem.molecules[mol].name}</span>`;
+    });
+    html+=`</div>`; return html;
+  }
+
+  function buildExplanationHTML(level) {
+    return `<div class="explanation-box"><div class="explanation-header">📚 Why did this reaction happen?</div><div class="explanation-body">${level.explanation}</div></div>`;
+  }
+
+  function showCompletionModal() {
+    const level=Levels[GS.currentLevel-1], stars=calculateStars();
+    const ct=$('completionTitle'); if(ct) ct.textContent='Level Complete! 🎉';
+    const cs=$('completionSubtitle'); if(cs) cs.textContent='Outstanding work, chemist!';
+    const cst=$('completionStars'); if(cst) cst.innerHTML='⭐'.repeat(stars)+'☆'.repeat(3-stars);
+    const cstats=$('completionStats');
+    if(cstats) cstats.innerHTML=`<div class="comp-stat"><span class="comp-stat-val">${GS.score}</span><span class="comp-stat-label">Score</span></div><div class="comp-stat"><span class="comp-stat-val">${GS.pathway.length}</span><span class="comp-stat-label">Steps</span></div><div class="comp-stat" style="grid-column:span 2"><span class="comp-stat-val">${formatTime(level.timeLimit-GS.timeRemaining)}</span><span class="comp-stat-label">Time Used</span></div>`;
+    const os=$('optimalSection');
+    if(os){ if(GS.pathway.length>level.optimalSteps){os.style.display='block';const op=$('optimalPath');if(op)op.innerHTML=buildOptimalPathHTML(level);}else{os.style.display='none';} }
+    GS.xp+=GS.score; GS.streak++; if(stars===3) GS.badges++;
+    saveProgress(); updateMenuStats();
+    $('completionModal')?.classList.add('active');
+  }
+
+  function showTimeUpModal() {
+    const level=Levels[GS.currentLevel-1];
+    const ts=$('timeUpScore'); if(ts) ts.textContent='0';
+    const tsteps=$('timeUpSteps'); if(tsteps) tsteps.textContent=GS.pathway.length;
+    const tt=$('timeUpTime'); if(tt) tt.textContent='2:00';
+    const top=$('timeUpOptimalPath'); if(top) top.innerHTML=buildOptimalPathHTML(level)+buildExplanationHTML(level);
+    GS.streak=0; saveProgress();
+    $('timeUpModal')?.classList.add('active');
+  }
+
+  function showFailedModal() {
+    const level=Levels[GS.currentLevel-1];
+    const fs=$('failedScore'); if(fs) fs.textContent='0';
+    const fa=$('failedAttempts'); if(fa) fa.textContent=GS.wrongAttempts;
+    const ft=$('failedTime'); if(ft) ft.textContent=formatTime(level.timeLimit-GS.timeRemaining);
+    const fop=$('failedOptimalPath'); if(fop) fop.innerHTML=buildOptimalPathHTML(level)+buildExplanationHTML(level);
+    GS.streak=0; saveProgress();
+    $('failedModal')?.classList.add('active');
+  }
+
+  function hideAllModals() {
+    ['completionModal','timeUpModal','failedModal','leaderboardModal'].forEach(id => $( id)?.classList.remove('active'));
+  }
+
+  function showLeaderboard() {
+    $('leaderboardModal')?.classList.add('active');
+    const ll=$('leaderboardList'); if(!ll) return;
+    const scores=[{name:'ChemMaster',score:2500},{name:'ReactionKing',score:2100},{name:'SynthesisPro',score:1800},{name:'You',score:GS.xp}].sort((a,b)=>b.score-a.score);
+    const medals=['🥇','🥈','🥉'];
+    ll.innerHTML=scores.map((e,i)=>`<div class="lb-entry ${e.name==='You'?'highlight':''}"><span class="lb-rank">${medals[i]||i+1}</span><span class="lb-name">${e.name}</span><span class="lb-score">${e.score} pts</span></div>`).join('');
+  }
+
+  // ── Stars / Flash ───────────────────────────────────
+  function calculateStars() {
+    const level=Levels[GS.currentLevel-1], steps=GS.pathway.length;
+    if(steps<=level.optimalSteps) return 3;
+    if(steps<=level.optimalSteps+1) return 2;
+    return 1;
+  }
+
+  function updateStarsDisplay(stars) {
+    const sd=$('starsDisplay'); if(!sd) return;
+    sd.innerHTML='';
+    for(let i=1;i<=3;i++){const s=document.createElement('span');s.className=`star ${i<=stars?'earned':''}`;s.textContent=i<=stars?'⭐':'☆';sd.appendChild(s);}
+  }
+
+  function flashScreen(cls) {
+    const sf=$('screenFlash'); if(!sf) return;
+    sf.className=`screen-flash ${cls}`;
+    setTimeout(()=>{sf.className='screen-flash';},600);
+  }
+
+  // ── Navigation ──────────────────────────────────────
+  function retryLevel() { hideAllModals(); startLevel(GS.currentLevel); }
+  function nextLevel() { hideAllModals(); const n=GS.currentLevel+1; if(n<=Levels.length) startLevel(n); else backToMenu(); }
+  function backToMenu() { hideAllModals(); clearInterval(GS.timerInterval); GS.isGameActive=false; showScreen('synthoMenuScreen'); updateMenuStats(); }
+
+  // ── Init ────────────────────────────────────────────
+  function init() {
+    loadProgress();
+    renderLevelGrid();
+    updateMenuStats();
+    setupDailyChallenge();
+
+    // Event listeners
+    $('backBtn')?.addEventListener('click', backToMenu);
+    $('undoBtn')?.addEventListener('click', undoStep);
+    $('clearBtn')?.addEventListener('click', clearPathway);
+    $('hintBtn')?.addEventListener('click', showHint);
+    $('explainBtn')?.addEventListener('click', showExplainPanel);
+    $('retryBtn')?.addEventListener('click', retryLevel);
+    $('nextLevelBtn')?.addEventListener('click', nextLevel);
+    $('menuBtn')?.addEventListener('click', backToMenu);
+    $('timeUpRetryBtn')?.addEventListener('click', retryLevel);
+    $('timeUpMenuBtn')?.addEventListener('click', backToMenu);
+    $('failedRetryBtn')?.addEventListener('click', retryLevel);
+    $('failedMenuBtn')?.addEventListener('click', backToMenu);
+    $('leaderboardBtn')?.addEventListener('click', showLeaderboard);
+    $('closeLeaderboard')?.addEventListener('click', () => $('leaderboardModal')?.classList.remove('active'));
+    $('closeLeaderboardBtn')?.addEventListener('click', () => $('leaderboardModal')?.classList.remove('active'));
+    $('resetProgressBtn')?.addEventListener('click', () => {
+      if (confirm('Reset SynthoQuest progress? This cannot be undone.')) {
+        localStorage.removeItem('synthoquest_progress');
+        GS.xp=0; GS.streak=0; GS.badges=0; updateMenuStats();
+      }
+    });
+  }
+
+  // Public
+  return { init };
+})();
+
+// ── Hook SynthoQuest into the main tab system ────────────────
+// Called when the 🎮 Game sub-tab is first activated
+function initSynthoQuest() {
+  const host = document.querySelector('.syntho-host');
+  if (!host || host.dataset.synthoInit) return;
+  host.dataset.synthoInit = 'true';
+  SynthoGame.init();
+}
+
+// Patch initChemSubTabs to call initSynthoQuest on game tab click
+(function patchChemSubTabs() {
+  // Wait until DOM is ready then monkey-patch the sub-tab handler
+  const origInit = window.initChemSubTabs;
+  window._synthoPatched = false;
+
+  document.addEventListener('click', (e) => {
+    const tab = e.target.closest('[data-chemtab="game"]');
+    if (tab) {
+      setTimeout(initSynthoQuest, 50);
+    }
+  }, true);
+})();
